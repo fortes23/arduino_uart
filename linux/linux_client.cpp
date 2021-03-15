@@ -145,16 +145,7 @@ int main(int argc, char** argv)
 
 		payload->do_num = (uint8_t)DoNum;
 		payload->do_val = (uint8_t)!(Activate && !Deactivate);
-		// if (Activate) {
-		// 	payload->do_val = 0;
-		// }
 
-		// if (Deactivate) {
-		// 	payload->do_val = 1;
-		// }
-		// for (uint32_t i = 0; i < 10; i++) {
-		// 	msg->payload[msg->length++] = i+20;
-		// }
 		UART_comms.sendData(msg->length+2);
 		std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
 		std::cout << "do_num " << (int)payload->do_num << " val: " << (int)payload->do_val << std::endl;

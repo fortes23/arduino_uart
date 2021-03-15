@@ -64,7 +64,6 @@ int32_t UartComms::begin(const char *filename)
 		std::cerr << "Flush error" << std::endl;
 		return -1;
 	}
-		system("stty -F /dev/ttyUSB0 sane raw -echo 115200");
 
 	// tcflush(_serial_fd,TCIOFLUSH);
 
@@ -147,16 +146,6 @@ bool UartComms::sendData(uint8_t data_len)
 //update incomingArray with new data if available
 int8_t UartComms::getData()
 {
-	// {
-	// 	uint32_t bytes_avail;
-	// 	ioctl(_serial_fd, FIONREAD, &bytes_avail);
-	// 	for (uint32_t i = 0; i < bytes_avail; i++) {
-	// 		uint8_t read_val;
-	// 		read(_serial_fd, &read_val, 1);
-	// 		std::cout << (char)read_val << std::endl;
-	// 	}
-	// 	return 0;
-	// }
 	std::time_t startTime = 0;
 	std::time_t endTime = 0;
 
