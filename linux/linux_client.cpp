@@ -7,9 +7,7 @@
 #include "uart.h"
 #include "stream.h"
 
-#define BUFFER_SIZE 128
 #define BAUDRATE    115200
-#define BUF_LEN     DATA_LEN*2
 
 #define MSG_GETSTATS  1
 #define MSG_SETDO     2
