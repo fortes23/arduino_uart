@@ -3,10 +3,6 @@
 
 #define BAUDRATE 115200
 #define MAX_DI 4
-#define MAX_SIZE_PAYLOAD 24
-
-#define RISING_EDGE(signal, prev_state) ((prev_state << 1) | (signal & 1) & 3) == 1
-#define FALLING_EDGE(signal, prev_state) ((prev_state << 1) | (signal & 1) & 3) == 2
 
 static const uint8_t DO_relays[MAX_DI] = {
 	2,
@@ -32,7 +28,6 @@ static Button DI_buttons[MAX_DI] = {
 #endif
 
 UartComms UART_comms;
-// static uint8_t Buttons_mask;
 static uint8_t DO_mask;
 
 void setup()

@@ -8,13 +8,13 @@ void UartComms::begin(Stream &stream)
 }
 
 //change the UART buffer timeout (10ms by default)
-void UartComms::setReceiveTimout(byte _timeout)
+void UartComms::setReceiveTimout(uint8_t _timeout)
 {
 	timeout = _timeout;
 }
 
 //find 8-bit checksum of message
-bool UartComms::calculateChecksum(uint8_t len, byte *buff)
+bool UartComms::calculateChecksum(uint8_t len, uint8_t *buff)
 {
 	//reset checksum
 	checksum = 0;
@@ -22,7 +22,7 @@ bool UartComms::calculateChecksum(uint8_t len, byte *buff)
 	//check if len is valid
 	if (len < BUFF_LEN) {
 		//compute checksum
-		for (byte i = 0; i < len; i++) {
+		for (uint8_t i = 0; i < len; i++) {
 			checksum = checksum + buff[i];
 		}
 		checksum = (~checksum) + 1;
@@ -47,8 +47,8 @@ bool UartComms::sendData(uint8_t data_len)
 
 	// Update auxiliar buffer
 	{
-		byte j = 0;
-		for (byte i = 0; i < data_len; i++) {
+		uint8_t j = 0;
+		for (uint8_t i = 0; i < data_len; i++) {
 			inBuff[j++] = i; // message ID
 			inBuff[j++] = outgoingArray[i];
 		}
@@ -62,14 +62,12 @@ bool UartComms::sendData(uint8_t data_len)
 
 	//send START_BYTE
 	_serial->write(START_BYTE);
-	
+
 	//send payload data_len in bytes
 	_serial->write(buff_len);
 
 	//send payload
-	for (byte i = 0; i < (buff_len); i++) {
-		_serial->write(inBuff[i]);
-	}
+	_serial->write(&inBuff[0], buff_len);
 
 	//send checksum
 	_serial->write(checksum);
@@ -86,7 +84,7 @@ int8_t UartComms::getData()
 	uint32_t startTime = 0;
 	uint32_t endTime = 0;
 
-	byte payloadLen = 0;
+	uint8_t payloadLen = 0;
 
 	bool startFound = false;
 
@@ -147,7 +145,7 @@ int8_t UartComms::getData()
 			}
 
 			//stuff all payload bytes in the buffer for processing
-			for (byte i = 0; i < payloadLen; i++) {
+			for (uint8_t i = 0; i < payloadLen; i++) {
 				inBuff[i] = _serial->read();
 			}
 
@@ -181,18 +179,15 @@ int8_t UartComms::getData()
 	return NO_DATA;
 }
 
-void UartComms::processData(byte payloadLen)
+void UartComms::processData(uint8_t payloadLen)
 {
 	//check if payloadLen is valid
-	// if ((payloadLen <= (DATA_LEN * 3)) && (!(payloadLen % 3))) {
-		for (byte i = 0; i < payloadLen; i = i + 2) {
-			//sanity check for messageID
-			if (inBuff[i] <= DATA_LEN) {
-				//stuff the 16-bit data (data arrives bigendian)
-				incomingArray[inBuff[i]] = (inBuff[i + 1]);
-			}
+	for (uint8_t i = 0; i < payloadLen; i = i + 2) {
+		//sanity check for messageID
+		if (inBuff[i] <= DATA_LEN) {
+			incomingArray[inBuff[i]] = (inBuff[i + 1]);
 		}
-	// }
+	}
 
 	return;
 }

@@ -21,13 +21,13 @@ class UartComms
 {
 public:
 	//data received
-	byte incomingArray[DATA_LEN] = { 0 };
+	uint8_t incomingArray[DATA_LEN] = { 0 };
 	//data to send
-	byte outgoingArray[DATA_LEN] = { 0 };
+	uint8_t outgoingArray[DATA_LEN] = { 0 };
 	//initialize the UartComms class
 	void begin(Stream& stream);
 	//change the UART buffer timeout (10ms by default)
-	void setReceiveTimout(byte timeout);
+	void setReceiveTimout(uint8_t timeout);
 	//send a selection of data from outgoingArray
 	bool sendData(uint8_t data_len);
 	//update incomingArray with new data if available
@@ -37,15 +37,15 @@ private:
 	//serial stream
 	Stream* _serial;
 	//data processing buffers
-	byte inBuff[BUFF_LEN] = { 0 };
+	uint8_t inBuff[BUFF_LEN] = { 0 };
 	//receive timeout of 10ms by default
 	uint16_t timeout = 1000;
 	//checksum for determining validity of transfer
-	byte checksum = 0;
+	uint8_t checksum = 0;
 	//find 8 - bit checksum of message
-	bool calculateChecksum(uint8_t len, byte *buff);
+	bool calculateChecksum(uint8_t len, uint8_t *buff);
 	//process raw data and stuff into dataArray
-	void processData(byte payloadLen);
+	void processData(uint8_t payloadLen);
 };
 
 #endif

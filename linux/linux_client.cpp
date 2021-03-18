@@ -5,6 +5,7 @@
 #include <iostream>
 #include <getopt.h>     // Miscellaneous symbolic constants and types.
 #include "uart.h"
+#include "stream.h"
 
 #define BUFFER_SIZE 128
 #define BAUDRATE    115200
@@ -131,10 +132,13 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	UartComms UART_comms;
-	if (UART_comms.begin(DevicePort.c_str()) < 0) {
+	Stream serial;
+	if (serial.begin(DevicePort.c_str(), BAUDRATE) < 0) {
 		exit(0);
 	}
+
+	UartComms UART_comms;
+	UART_comms.begin(serial);
 
 	if (Activate || Deactivate) {
 		struct st_msg_ib *msg = (struct st_msg_ib *)(&UART_comms.outgoingArray[0]);
