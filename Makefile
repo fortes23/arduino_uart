@@ -1,8 +1,8 @@
-linux:
-	g++ -I linux/include linux/linux_client.cpp linux/uart.cpp linux/stream.cpp -o linux_uart
+# Read configuration file
+include .config
 
-clean:
-	rm -f linux/*.o
-	rm -f linux_uart
+# Linux application
+include linux/linux.mk
 
-.PHONY: linux
+# Arduino application
+include arduino/arduino.mk
