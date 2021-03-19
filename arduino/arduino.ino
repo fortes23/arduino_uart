@@ -4,7 +4,7 @@
 
 #define BAUDRATE 115200
 
-UartComms UART_comms;
+static UartComms UART_comms;
 static uint8_t DO_mask;
 
 void setup()
@@ -20,6 +20,7 @@ void setup()
 		#if EXTERNAL_LED
 			pinMode(LEDs_state[i], OUTPUT);
 		#endif
+		DO_mask = 0;
 	}
 }
 
@@ -108,8 +109,6 @@ static uint8_t Get_Buttons(uint8_t new_do_mask)
 	// Change state DI according to the rising edge of the buttons
 	for (uint8_t i = 0; i < MAX_DI; i++) {
 		if (DI_buttons[i].getState() == Button::Rising) {
-			Serial.print("Button: ");
-			Serial.println(i);
 			if ((new_do_mask & (1 << i)) > 0) {
 				new_do_mask &= ~(1 << i);
 			} else {
@@ -130,17 +129,11 @@ void loop() {
 
 	// Update DO
 	for (uint8_t i = 0; i < MAX_DI; i++) {
-		if ((new_do_val & (1 << i)) > 0) {
-			digitalWrite(DO_relays[i], HIGH);
-			#if EXTERNAL_LED
-				digitalWrite(LEDs_state[i], HIGH);
-			#endif
-		} else {
-			digitalWrite(DO_relays[i], LOW);
-			#if EXTERNAL_LED
-				digitalWrite(LEDs_state[i], LOW);
-			#endif
-		}
+		bool status = (new_do_val & (1 << i)) > 0;
+		digitalWrite(DO_relays[i], !status);
+		#if EXTERNAL_LED
+			digitalWrite(LEDs_state[i], !status);
+		#endif
 	}
 
 	DO_mask = new_do_val;

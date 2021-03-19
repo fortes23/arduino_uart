@@ -146,7 +146,7 @@ int main(int argc, char** argv)
 		struct st_msg_do_val *payload = (struct st_msg_do_val *)(&msg->payload[0]);
 
 		payload->do_num = (uint8_t)DoNum;
-		payload->do_val = (uint8_t)!(Activate && !Deactivate);
+		payload->do_val = (uint8_t)(Activate && !Deactivate);
 
 		UART_comms.sendData(msg->length+2);
 		std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
