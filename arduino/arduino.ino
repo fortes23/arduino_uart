@@ -1,31 +1,8 @@
 #include "uart.h"
 #include "button.h"
+#include "pins.h"
 
 #define BAUDRATE 115200
-#define MAX_DI 4
-
-static const uint8_t DO_relays[MAX_DI] = {
-	2,
-	3,
-	4,
-	5
-};
-
-static Button DI_buttons[MAX_DI] = {
-	10,
-	11,
-	12,
-	9
-};
-
-#if EXTERNAL_LED
-	static const uint8_t LEDs_state[MAX_DI] = {
-		6,
-		7,
-		8,
-		8
-	};
-#endif
 
 UartComms UART_comms;
 static uint8_t DO_mask;
