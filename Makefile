@@ -1,5 +1,7 @@
+CFG_FILE := .config
+
 # Read configuration file
-include .config
+include $(CFG_FILE)
 
 # Linux application
 include linux/linux.mk

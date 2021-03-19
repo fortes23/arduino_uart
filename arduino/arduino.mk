@@ -157,21 +157,21 @@ AVRTOOLSPATH += $(ARDUINODIR)/hardware/tools/avr/bin
 endif
 
 MKE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-CUR_DIR := $(notdir $(patsubst %/,%,$(dir $(MKE_PATH))))
+SRC_PATH := $(notdir $(patsubst %/,%,$(dir $(MKE_PATH))))
 
 # auto mode?
-INOFILE := $(wildcard *.ino *.pde)
+INOFILE := $(wildcard $(addprefix $(SRC_PATH)/, *.ino *.pde))
 ifdef INOFILE
 ifneq "$(words $(INOFILE))" "1"
 $(error There is more than one .pde or .ino file in this directory!)
 endif
 
 # automatically determine sources and targeet
-TARGET := $(basename $(INOFILE))
+TARGET := $(basename $(notdir $(INOFILE)))
 SOURCES := $(INOFILE) \
-	$(wildcard *.c *.cc *.cpp) \
-	$(wildcard $(addprefix util/, *.c *.cc *.cpp)) \
-	$(wildcard $(addprefix utility/, *.c *.cc *.cpp))
+	$(wildcard $(addprefix $(SRC_PATH)/,*.c *.cc *.cpp)) \
+	$(wildcard $(addprefix $(SRC_PATH)/util/, *.c *.cc *.cpp)) \
+	$(wildcard $(addprefix $(SRC_PATH)/utility/, *.c *.cc *.cpp))
 
 # automatically determine included libraries
 ARDUINOLIBSAVAIL := $(notdir $(wildcard $(ARDUINODIR)/libraries/*))
@@ -201,7 +201,7 @@ OBJCOPY := $(call findsoftware,avr-objcopy)
 AVRDUDE := $(call findsoftware,avrdude)
 
 # files
-BUILD_PATH := build
+BUILD_PATH := $(SRC_PATH)/build
 TARGET := $(if $(TARGET),$(TARGET),a.out)
 OBJECTS := $(addsuffix .o, $(basename $(SOURCES)))
 ARDUINOSRCDIR := $(ARDUINODIR)/hardware/arduino/avr/cores/arduino
@@ -237,35 +237,35 @@ endif
 # obtain board parameters from the arduino boards.txt file
 BOARD_BUILD_MCU := \
 	$(shell sed -ne "s/$(BOARD).build.mcu=\(.*\)/\1/p" $(BOARDS_FILE))
-ifndef BOARD_BUILD_MCU
+ifeq "$(BOARD_BUILD_MCU)" ""
 	BOARD_BUILD_MCU := \
 	$(shell sed -ne "s/$(BOARD).menu.cpu.$(PROCESSOR).build.mcu=\(.*\)/\1/p" $(BOARDS_FILE))
 endif
 
 BOARD_BUILD_FCPU := \
 	$(shell sed -ne "s/$(BOARD).build.f_cpu=\(.*\)/\1/p" $(BOARDS_FILE))
-ifndef BOARD_BUILD_FCPU
+ifeq "$(BOARD_BUILD_FCPU)" ""
 BOARD_BUILD_FCPU := \
 	$(shell sed -ne "s/$(BOARD).menu.cpu.$(PROCESSOR).build.f_cpu=\(.*\)/\1/p" $(BOARDS_FILE))
 endif
 
 BOARD_BUILD_VARIANT := \
 	$(shell sed -ne "s/$(BOARD).build.variant=\(.*\)/\1/p" $(BOARDS_FILE))
-ifndef BOARD_BUILD_VARIANT
+ifeq "$(BOARD_BUILD_VARIANT)" ""
 BOARD_BUILD_VARIANT := \
 	$(shell sed -ne "s/$(BOARD).menu.cpu.$(PROCESSOR).build.variant=\(.*\)/\1/p" $(BOARDS_FILE))
 endif
 
 BOARD_UPLOAD_SPEED := \
 	$(shell sed -ne "s/$(BOARD).upload.speed=\(.*\)/\1/p" $(BOARDS_FILE))
-ifndef $BOARD_UPLOAD_SPEED
+ifeq "$(BOARD_UPLOAD_SPEED)" ""
 BOARD_UPLOAD_SPEED := \
 	$(shell sed -ne "s/$(BOARD).menu.cpu.$(PROCESSOR).upload.speed=\(.*\)/\1/p" $(BOARDS_FILE))
 endif
 
 BOARD_UPLOAD_PROTOCOL := \
 	$(shell sed -ne "s/$(BOARD).upload.protocol=\(.*\)/\1/p" $(BOARDS_FILE))
-ifndef $BOARD_UPLOAD_PROTOCOL
+ifeq "$(BOARD_UPLOAD_PROTOCOL)" ""
 BOARD_UPLOAD_PROTOCOL := \
 	$(shell sed -ne "s/$(BOARD).menu.cpu.$(PROCESSOR).upload.protocol=\(.*\)/\1/p" $(BOARDS_FILE))
 endif
@@ -298,7 +298,6 @@ LINKFLAGS := -Os -Wl,--gc-sections -mmcu=$(BOARD_BUILD_MCU)
 BOARD_HIGH := $(shell echo '$(BOARD)' | tr '[:lower:]' '[:upper:]')
 DEFINES := -DARDUINO_AVR_$(BOARD_HIGH)
 DEFINES += -DARDUINO_ARCH_AVR
-
 CPPFLAGS += $(DEFINES)
 
 # figure out which arg to use with stty
@@ -312,11 +311,11 @@ STTYFARG := $(shell stty --help > /dev/null 2>&1 && echo -F || echo -f)
 #_______________________________________________________________________________
 #                                                                          RULES
 
-.PHONY:	arduino-all arduino-build arduino-target arduino-upload arduino-clean arduino-boards arduino_monitor
+.PHONY:	arduino-build arduino-mkdir arduino-target arduino-upload arduino-clean arduino-boards arduino_monitor
 
-arduino-all: arduino-build arduino-target
+arduino-build: arduino-mkdir arduino-target
 
-arduino-build:
+arduino-mkdir:
 	mkdir -p $(BUILD_PATH)
 
 arduino-target: $(BUILD_PATH)/$(TARGET).hex
@@ -335,8 +334,6 @@ arduino-upload:
 arduino-clean:
 	rm -f $(OBJECTS)
 	rm -rf $(BUILD_PATH)
-	# rm -f $(BUILD_PATH)/$(TARGET).elf $(BUILD_PATH)/$(TARGET).hex $(ARDUINOLIB) *~
-	# rm -rf $(ARDUINOLIBTMP)
 
 arduino-boards:
 	@echo Available values for BOARD:
@@ -363,7 +360,7 @@ $(BUILD_PATH)/$(TARGET).hex:$(BUILD_PATH)/$(TARGET).elf
 
 .INTERMEDIATE: $(BUILD_PATH)/$(TARGET).elf
 
-$(BUILD_PATH)/$(TARGET).elf: $(ARDUINOLIB) $(OBJECTS)
+$(BUILD_PATH)/$(TARGET).elf: $(ARDUINOLIB) $(OBJECTS) $(CFG_FILE)
 	$(CC) $(LINKFLAGS) $(OBJECTS) $(ARDUINOLIB) -o $@
 
 %.o: %.ino

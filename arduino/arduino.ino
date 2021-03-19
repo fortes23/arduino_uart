@@ -121,7 +121,6 @@ static uint8_t Get_Buttons(uint8_t new_do_mask)
 }
 
 void loop() {
-	uint8_t change_di_mask = 0;
 	uint8_t new_do_val = DO_mask;
 
 	new_do_val = Get_UART_Data(DO_mask);
