@@ -35,12 +35,12 @@ struct st_msg_do_val {
 	uint8_t do_val;
 };
 
-struct st_msg_send_stats {
+struct st_msg_stats {
 	uint8_t do_mask;
 };
 
 
-struct st_msg_ib {
+struct st_msg {
 	uint8_t type;
 	uint8_t length;
 	uint8_t payload[DATA_LEN-2];
@@ -48,17 +48,17 @@ struct st_msg_ib {
 
 static void SendDOStats(void)
 {
-	struct st_msg_ib *msg = (struct st_msg_ib *)(&UART_comms.outgoingArray[0]);
+	struct st_msg *msg = (struct st_msg *)(&UART_comms.outgoingArray[0]);
 	msg->type = MSG_GETSTATS;
-	msg->length = sizeof(struct st_msg_send_stats);
+	msg->length = sizeof(struct st_msg_stats);
 
-	struct st_msg_send_stats *payload = (struct st_msg_send_stats *)(&msg->payload[0]);
+	struct st_msg_stats *payload = (struct st_msg_stats *)(&msg->payload[0]);
 	payload->do_mask = DO_mask;
 
 	UART_comms.sendData(msg->length + HEADER_MSG);
 }
 
-static uint8_t Get_UART_DO(struct st_msg_ib *msg, uint8_t new_do_mask)
+static uint8_t Get_UART_DO(struct st_msg *msg, uint8_t new_do_mask)
 {
 	struct st_msg_do_val *payload = (struct st_msg_do_val *)(&msg->payload[0]);
 
@@ -71,7 +71,7 @@ static uint8_t Get_UART_DO(struct st_msg_ib *msg, uint8_t new_do_mask)
 	return new_do_mask;
 }
 
-static void SendTestMsg(struct st_msg_ib *msg)
+static void SendTestMsg(struct st_msg *msg)
 {
 	memcpy(&UART_comms.outgoingArray[0], msg, msg->length + HEADER_MSG);
 	UART_comms.sendData(msg->length + HEADER_MSG);
@@ -84,8 +84,8 @@ static uint8_t Get_UART_Data(uint8_t new_do_mask)
 
 	//figure out if data was available - if so, determine if the transfer successful
 	if (report == 1) {
-		struct st_msg_ib msg;
-		memcpy(&msg, &UART_comms.incomingArray[0], sizeof(struct st_msg_ib));
+		struct st_msg msg;
+		memcpy(&msg, &UART_comms.incomingArray[0], sizeof(struct st_msg));
 
 		switch (msg.type) {
 			case MSG_GETSTATS:
