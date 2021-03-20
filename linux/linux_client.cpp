@@ -1,42 +1,32 @@
-#include <stdio.h>      // standard input / output functions
-#include <stdlib.h>
-#include <string.h>     // string function definitions
 #include <unistd.h>     // UNIX standard function definitions
 #include <iostream>
 #include <getopt.h>     // Miscellaneous symbolic constants and types.
 #include "uart.h"
-#include "stream.h"
+#include "linux_client.h"
 
 #define BAUDRATE    115200
+#define MAX_DI        4
 
 #define MSG_GETSTATS  1
 #define MSG_SETDO     2
 #define MSG_TEST      3
-
-std::string DevicePort;
-bool Get_Statistics = false;
-bool Activate = false;
-bool Deactivate = false;
-uint32_t DoNum;
-
 
 struct st_msg_do_val {
 	uint8_t do_num;
 	uint8_t do_val;
 };
 
-struct st_msg_send_stats {
+struct st_msg_stats {
 	uint8_t do_mask;
 };
 
-
-struct st_msg_ib {
+struct st_msg {
 	uint8_t type;
 	uint8_t length;
 	uint8_t payload[DATA_LEN-2];
 };
 
-void usage(FILE *output)// const
+void LinuxClient::usage(FILE *output) const
 {
 	fprintf(output,
 	        "\n"
@@ -51,7 +41,7 @@ void usage(FILE *output)// const
 	);
 }
 
-int32_t parse(int32_t argc, char *const argv[])
+int32_t LinuxClient::parse(int32_t argc, char *const argv[])
 {
 	if (argc == 1) {
 		usage(stdout);
@@ -78,32 +68,43 @@ int32_t parse(int32_t argc, char *const argv[])
 		}
 
 		const char *argument;
+		int32_t aux_do = 0;
 		switch (c) {
 		case 'p':
 			argument = optarg;
 			if (*argument == '=' || *argument == ':') {
 				argument++;
 			}
-			DevicePort = argument;
+			dev_port = argument;
 			break;
 		case 'a':
 			argument = optarg;
 			if (*argument == '=' || *argument == ':') {
 				argument++;
 			}
-			Activate = true;
-			DoNum = atoi(argument);
+			aux_do = atoi(argument) - 1;
+			if ((aux_do < 0) || (aux_do >= MAX_DI)) {
+				std::cout << "Invalid Relay Number " << aux_do+1 << std::endl;
+				break;
+			}
+			n_do = aux_do;
+			act_do = true;
 			break;
 		case 'd':
 			argument = optarg;
 			if (*argument == '=' || *argument == ':') {
 				argument++;
 			}
-			Deactivate = true;
-			DoNum = atoi(argument);
+			aux_do = atoi(argument) - 1;
+			if ((aux_do < 0) || (aux_do >= MAX_DI)) {
+				std::cout << "Invalid Relay Number " << aux_do+1 << std::endl;
+				break;
+			}
+			n_do = aux_do;
+			deact_do = true;
 			break;
 		case 's':
-			Get_Statistics = true;
+			get_stats = true;
 			break;
 		case 'h':
 			usage(stdout);
@@ -122,73 +123,105 @@ int32_t parse(int32_t argc, char *const argv[])
 	return 0;
 }
 
-
-int main(int argc, char** argv)
+int32_t LinuxClient::connect(void)
 {
-
-	if (parse(argc, argv) != 0) {
+	if (serial.begin(dev_port.c_str(), BAUDRATE) < 0) {
 		return -1;
 	}
+	return 0;
+}
 
-	Stream serial;
-	if (serial.begin(DevicePort.c_str(), BAUDRATE) < 0) {
-		exit(0);
-	}
-
+void LinuxClient::exec(void)
+{
 	UartComms UART_comms;
 	UART_comms.begin(serial);
 
-	if (Activate || Deactivate) {
-		struct st_msg_ib *msg = (struct st_msg_ib *)(&UART_comms.outgoingArray[0]);
+	if (act_do || deact_do) {
+		struct st_msg *msg = (struct st_msg *)(&UART_comms.outgoingArray[0]);
 		msg->type = MSG_SETDO;
 		msg->length = sizeof(struct st_msg_do_val);
 
 		struct st_msg_do_val *payload = (struct st_msg_do_val *)(&msg->payload[0]);
 
-		payload->do_num = (uint8_t)DoNum;
-		payload->do_val = (uint8_t)(Activate && !Deactivate);
+		payload->do_num = (uint8_t)n_do;
+		payload->do_val = (uint8_t)(act_do && !deact_do);
 
 		UART_comms.sendData(msg->length+2);
-		std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
-		std::cout << "do_num " << (int)payload->do_num << " val: " << (int)payload->do_val << std::endl;
+
+		#if DEBUG_MSG
+			std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
+			std::cout << "do_num " << (int)payload->do_num << " val: " << (int)payload->do_val << std::endl;
+		#endif
 	}
 
-
 	#if TEST
+		/* Request of TEST */
 		{
-			struct st_msg_ib *msg = (struct st_msg_ib *)(&UART_comms.outgoingArray[0]);
+			struct st_msg *msg = (struct st_msg *)(&UART_comms.outgoingArray[0]);
 			msg->type = MSG_TEST;
 			msg->length = 0;
 			for (uint32_t i = 0; i < 10; i++) {
 				msg->payload[msg->length++] = i+20;
 			}
 			UART_comms.sendData(msg->length+2);
-			std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
+			#if DEBUG_MSG
+				std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
+			#endif
+		}
+		/* Read Test */
+		{
+			while (true) {
+				int32_t report = UART_comms.getData();
+
+				if (report == 1) {
+					struct st_msg msg;
+					memcpy(&msg, &UART_comms.incomingArray[0], sizeof(struct st_msg));
+
+					std::cout << "msg type: " << (uint32_t)msg.type << ", length: " << (uint32_t)msg.length << std::endl;
+					for (uint32_t i = 0; i < msg.length; i++) {
+						std::cout << i << " -- " << (int)msg.payload[i] << std::endl;
+					}
+					break;
+				}
+			}
 		}
 	#endif
 
-	if (Get_Statistics) {
+	if (get_stats) {
 		/* Request of statistics */
 		{
-			struct st_msg_ib *msg = (struct st_msg_ib *)(&UART_comms.outgoingArray[0]);
+			struct st_msg *msg = (struct st_msg *)(&UART_comms.outgoingArray[0]);
 			msg->type = MSG_GETSTATS;
 			msg->length = 0;
 
 			UART_comms.sendData(msg->length+2);
-			std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
+			#if DEBUG_MSG
+				std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
+			#endif
 		}
 
 		/* Read answer */
 		while (true) {
 			int32_t report = UART_comms.getData();
-				//figure out if data was available - if so, determine if the transfer successful
-			if (report == 1) {
-				struct st_msg_ib msg;
-				memcpy(&msg, &UART_comms.incomingArray[0], sizeof(struct st_msg_ib));
-				std::cout << "msg type: " << (uint32_t)msg.type << ", length: " << (uint32_t)msg.length << std::endl;
 
-				for (uint32_t i = 0; i < msg.length; i++) {
-					std::cout << i << " -- " << (int)msg.payload[i] << std::endl;
+			if (report == 1) {
+				struct st_msg msg;
+				memcpy(&msg, &UART_comms.incomingArray[0], sizeof(struct st_msg));
+
+				#if DEBUG_MSG
+					std::cout << "msg type: " << (uint32_t)msg.type << ", length: " << (uint32_t)msg.length << std::endl;
+					for (uint32_t i = 0; i < msg.length; i++) {
+						std::cout << i << " -- " << (int)msg.payload[i] << std::endl;
+					}
+				#endif
+
+				if (msg.type != MSG_GETSTATS) {
+					std::cerr << "Not expected msg (type: " << (uint32_t)msg.type << ")" << std::endl;
+				} else {
+					struct st_msg_stats *msg_stats = (struct st_msg_stats *)(&msg.payload[0]);
+					for (uint8_t i = 0; i < MAX_DI; i++) {
+						std::cout << "Relay " << (int)(i+1) << ": " << (int)((msg_stats->do_mask & (1 << i)) > 0) << std::endl;
+					}
 				}
 				break;
 			}
