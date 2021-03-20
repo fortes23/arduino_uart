@@ -14,25 +14,21 @@ void UartComms::setReceiveTimout(uint8_t _timeout)
 }
 
 //find 8-bit checksum of message
-bool UartComms::calculateChecksum(uint8_t len, uint8_t *buff)
+uint8_t UartComms::calculateChecksum(uint8_t len, uint8_t *buff)
 {
-	//reset checksum
-	checksum = 0;
-
-	//check if len is valid
-	if (len < BUFF_LEN) {
-		//compute checksum
-		for (uint8_t i = 0; i < len; i++) {
-			checksum = checksum + buff[i];
+	uint8_t crc = 0;
+	for (uint8_t i = 0; i < len; i++) {
+		uint8_t inbyte = buff[i];
+		for (uint8_t j = 0; j < 8; j++) {
+			uint8_t mix = (crc ^ inbyte) & 0x01;
+			crc >>= 1;
+			if (mix) {
+				crc ^= 0x8C;
+			}
+			inbyte >>= 1;
 		}
-		checksum = (~checksum) + 1;
-	} else {
-		//couldn't update checksum
-		return false;
 	}
-
-	//checksum updated
-	return true;
+	return crc;
 }
 
 //send a selection of data from outgoingArray
@@ -44,21 +40,18 @@ bool UartComms::sendData(uint8_t data_len)
 	}
 
 	uint8_t buff_len = data_len * 2;
-
+	uint8_t auxBuff[BUFF_LEN];
 	// Update auxiliar buffer
 	{
 		uint8_t j = 0;
 		for (uint8_t i = 0; i < data_len; i++) {
-			inBuff[j++] = i; // message ID
-			inBuff[j++] = outgoingArray[i];
+			auxBuff[j++] = i; // message ID
+			auxBuff[j++] = outgoingArray[i];
 		}
 	}
 
 	//update checksum before sending dataframe
-	if (!calculateChecksum(buff_len, &inBuff[0])) {
-		//couldn't update checksum - return to main code
-		return false;
-	}
+	uint8_t checksum = calculateChecksum(buff_len, &auxBuff[0]);
 
 	//send START_BYTE
 	_serial->write(START_BYTE);
@@ -67,7 +60,7 @@ bool UartComms::sendData(uint8_t data_len)
 	_serial->write(buff_len);
 
 	//send payload
-	_serial->write(&inBuff[0], buff_len);
+	_serial->write(&auxBuff[0], buff_len);
 
 	//send checksum
 	_serial->write(checksum);
@@ -144,13 +137,14 @@ int8_t UartComms::getData()
 				}
 			}
 
+			uint8_t auxBuff[BUFF_LEN];
 			//stuff all payload bytes in the buffer for processing
 			for (uint8_t i = 0; i < payloadLen; i++) {
-				inBuff[i] = _serial->read();
+				auxBuff[i] = _serial->read();
 			}
 
 			//update checksum before processing
-			calculateChecksum(payloadLen, &inBuff[0]);
+			uint8_t checksum = calculateChecksum(payloadLen, &auxBuff[0]);
 
 			//test received checksum
 			if (_serial->read() != checksum) {
@@ -165,7 +159,7 @@ int8_t UartComms::getData()
 			}
 
 			//process raw data and stuff into dataArray only if all data validity tests are passed
-			processData(payloadLen);
+			processData(payloadLen, &auxBuff[0]);
 
 			//nocie, everything checked out
 			return 1;
@@ -179,15 +173,13 @@ int8_t UartComms::getData()
 	return NO_DATA;
 }
 
-void UartComms::processData(uint8_t payloadLen)
+void UartComms::processData(uint8_t payloadLen, uint8_t *buff)
 {
 	//check if payloadLen is valid
 	for (uint8_t i = 0; i < payloadLen; i = i + 2) {
 		//sanity check for messageID
-		if (inBuff[i] <= DATA_LEN) {
-			incomingArray[inBuff[i]] = (inBuff[i + 1]);
+		if (buff[i] <= DATA_LEN) {
+			incomingArray[buff[i]] = (buff[i + 1]);
 		}
 	}
-
-	return;
 }

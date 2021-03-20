@@ -36,16 +36,12 @@ public:
 private:
 	//serial stream
 	Stream* _serial;
-	//data processing buffers
-	uint8_t inBuff[BUFF_LEN] = { 0 };
 	//receive timeout of 10ms by default
 	uint16_t timeout = 1000;
-	//checksum for determining validity of transfer
-	uint8_t checksum = 0;
 	//find 8 - bit checksum of message
-	bool calculateChecksum(uint8_t len, uint8_t *buff);
+	uint8_t calculateChecksum(uint8_t len, uint8_t *buff);
 	//process raw data and stuff into dataArray
-	void processData(uint8_t payloadLen);
+	void processData(uint8_t payloadLen, uint8_t *buff);
 };
 
 #endif
