@@ -7,6 +7,7 @@
 #define BAUDRATE    115200
 #define MAX_DI        4
 
+#define HEADER_MSG    2
 #define MSG_GETSTATS  1
 #define MSG_SETDO     2
 #define MSG_TEST      3
@@ -146,7 +147,7 @@ void LinuxClient::exec(void)
 		payload->do_num = (uint8_t)n_do;
 		payload->do_val = (uint8_t)(act_do && !deact_do);
 
-		UART_comms.sendData(msg->length+2);
+		UART_comms.sendData(msg->length + HEADER_MSG);
 
 		#if DEBUG_MSG
 			std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
@@ -163,7 +164,7 @@ void LinuxClient::exec(void)
 			for (uint32_t i = 0; i < 10; i++) {
 				msg->payload[msg->length++] = i+20;
 			}
-			UART_comms.sendData(msg->length+2);
+			UART_comms.sendData(msg->length + HEADER_MSG);
 			#if DEBUG_MSG
 				std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
 			#endif
@@ -194,7 +195,7 @@ void LinuxClient::exec(void)
 			msg->type = MSG_GETSTATS;
 			msg->length = 0;
 
-			UART_comms.sendData(msg->length+2);
+			UART_comms.sendData(msg->length + HEADER_MSG);
 			#if DEBUG_MSG
 				std::cout << "Send Data type: " << (int)msg->type << " length: " << (int)msg->length << std::endl;
 			#endif
